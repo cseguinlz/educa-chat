@@ -9,9 +9,9 @@ interface Page {
 class Crawler {
   private seen = new Set<string>();
   private pages: Page[] = [];
-  private queue: { url: string; depth: number }[] = [];
+  private queue: { url: string; depth: number; }[] = [];
 
-  constructor(private maxDepth = 2, private maxPages = 1) { }
+  constructor(private maxDepth = 10, private maxPages = 50) { }
 
   async crawl(startUrl: string): Promise<Page[]> {
     // Add the start URL to the queue
@@ -60,6 +60,9 @@ class Crawler {
 
   private addNewUrlsToQueue(urls: string[], depth: number) {
     this.queue.push(...urls.map(url => ({ url, depth: depth + 1 })));
+    console.log(`Added ${urls.length} new URLs to the queue`);
+    // console log the urls
+    console.log(urls);
   }
 
   private async fetchPage(url: string): Promise<string> {
@@ -75,7 +78,8 @@ class Crawler {
   private parseHtml(html: string): string {
     const $ = cheerio.load(html);
     $('a').removeAttr('href');
-    return NodeHtmlMarkdown.translate($.html());
+    $('img').remove();
+    return NodeHtmlMarkdown.translate($('main').html() || '');
   }
 
   private extractUrls(html: string, baseUrl: string): string[] {

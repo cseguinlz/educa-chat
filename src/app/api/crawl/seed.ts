@@ -1,18 +1,18 @@
 import { getEmbeddings } from "@/utils/embeddings";
 import { Document, MarkdownTextSplitter, RecursiveCharacterTextSplitter } from "@pinecone-database/doc-splitter";
 import { Pinecone, PineconeRecord } from "@pinecone-database/pinecone";
-import { chunkedUpsert } from '../../utils/chunkedUpsert'
+import { chunkedUpsert } from '../../utils/chunkedUpsert';
 import md5 from "md5";
 import { Crawler, Page } from "./crawler";
-import { truncateStringByBytes } from "@/utils/truncateString"
+import { truncateStringByBytes } from "@/utils/truncateString";
 
 interface SeedOptions {
-  splittingMethod: string
-  chunkSize: number
-  chunkOverlap: number
+  splittingMethod: string;
+  chunkSize: number;
+  chunkOverlap: number;
 }
 
-type DocumentSplitter = RecursiveCharacterTextSplitter | MarkdownTextSplitter
+type DocumentSplitter = RecursiveCharacterTextSplitter | MarkdownTextSplitter;
 
 async function seed(url: string, limit: number, indexName: string, options: SeedOptions) {
   try {
@@ -23,10 +23,13 @@ async function seed(url: string, limit: number, indexName: string, options: Seed
     const { splittingMethod, chunkSize, chunkOverlap } = options;
 
     // Create a new Crawler with depth 1 and maximum pages as limit
-    const crawler = new Crawler(1, limit || 100);
+    const crawler = new Crawler(3, limit || 20);
 
     // Crawl the given URL and get the pages
     const pages = await crawler.crawl(url) as Page[];
+    // console log number of pages
+    console.log('Cuántas páginas: ', pages.length);
+
 
     // Choose the appropriate document splitter based on the splitting method
     const splitter: DocumentSplitter = splittingMethod === 'recursive' ?
@@ -37,7 +40,7 @@ async function seed(url: string, limit: number, indexName: string, options: Seed
 
     // Create Pinecone index if it does not exist
     const indexList = await pinecone.listIndexes();
-    const indexExists = indexList.some(index => index.name === indexName)
+    const indexExists = indexList.some(index => index.name === indexName);
     if (!indexExists) {
       await pinecone.createIndex({
         name: indexName,
@@ -46,13 +49,13 @@ async function seed(url: string, limit: number, indexName: string, options: Seed
       });
     }
 
-    const index = pinecone.Index(indexName)
+    const index = pinecone.Index(indexName);
 
     // Get the vector embeddings for the documents
     const vectors = await Promise.all(documents.flat().map(embedDocument));
 
     // Upsert vectors into the Pinecone index
-    await chunkedUpsert(index!, vectors, '', 10);
+    await chunkedUpsert(index!, vectors, '', 1000);
 
     // Return the first document
     return documents[0];
@@ -82,8 +85,8 @@ async function embedDocument(doc: Document): Promise<PineconeRecord> {
       }
     } as PineconeRecord;
   } catch (error) {
-    console.log("Error embedding document: ", error)
-    throw error
+    console.log("Error embedding document: ", error);
+    throw error;
   }
 }
 
@@ -102,6 +105,8 @@ async function prepareDocument(page: Page, splitter: DocumentSplitter): Promise<
       },
     }),
   ]);
+  // console log length of docs
+  console.log('Cuántos docs van: ', docs.length);
 
   // Map over the documents and add a hash to their metadata
   return docs.map((doc: Document) => {
